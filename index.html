@@ -78,7 +78,7 @@
         <!-- Header -->
         <header class="mb-12 text-center fade-in" style="animation-delay: 0.1s;">
             <h1 class="text-4xl font-extrabold tracking-tight text-white mb-2">Image Master <span class="text-blue-500">Editor</span></h1>
-            <p class="text-slate-400 font-medium">Professional grade conversion, scaling, and cropping</p>
+            <p class="text-slate-400 font-medium">Professional grade conversion, scaling, and precise cropping</p>
         </header>
 
         <!-- Main Content -->
@@ -141,19 +141,33 @@
                             <button onclick="setScale(0.5)" class="scale-btn btn-action flex-1 py-2 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-700/50" data-scale="0.5">1/2x</button>
                             <button onclick="setScale(1)" class="scale-btn btn-action flex-1 py-2 border border-blue-500/50 bg-blue-500/10 rounded-xl text-blue-400 font-bold" data-scale="1">1x</button>
                             <button onclick="setScale(2)" class="scale-btn btn-action flex-1 py-2 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-700/50" data-scale="2">2x</button>
-                            <button onclick="setScale(4)" class="scale-btn btn-action flex-1 py-2 border border-slate-700 rounded-xl text-slate-300 hover:bg-slate-700/50" data-scale="4">4x</button>
                         </div>
                     </div>
 
                     <!-- Aspect & Action -->
-                    <div class="space-y-4">
-                        <label class="flex items-center gap-2 text-sm font-bold text-slate-400 uppercase tracking-widest">
-                            <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> 3. Crop & Save
-                        </label>
-                        <div class="flex gap-2 mb-4">
-                            <button onclick="cropper.setAspectRatio(NaN)" class="flex-1 py-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">Free</button>
-                            <button onclick="cropper.setAspectRatio(1)" class="flex-1 py-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">1:1</button>
-                            <button onclick="cropper.setAspectRatio(16/9)" class="flex-1 py-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">16:9</button>
+                    <div class="space-y-4 flex flex-col justify-between">
+                        <div>
+                            <label class="flex items-center gap-2 text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span> 3. Export
+                            </label>
+                            
+                            <!-- Aspect Ratio -->
+                            <div class="flex gap-2 mb-4">
+                                <button onclick="cropper.setAspectRatio(NaN)" class="flex-1 py-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">Free</button>
+                                <button onclick="cropper.setAspectRatio(1)" class="flex-1 py-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">1:1</button>
+                                <button onclick="cropper.setAspectRatio(16/9)" class="flex-1 py-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">16:9</button>
+                            </div>
+                            
+                            <!-- Filename Input -->
+                            <div class="space-y-1 mb-4">
+                                <div class="flex items-center bg-slate-800 rounded-xl border border-slate-700 overflow-hidden focus-within:border-blue-500 transition-colors">
+                                    <input type="text" id="filename-input" class="w-full bg-transparent text-slate-200 text-sm px-3 py-2.5 outline-none placeholder-slate-500" placeholder="Filename">
+                                    <span id="filename-ext" class="text-slate-500 text-sm pr-3 font-mono bg-slate-800 border-l border-slate-700 pl-3">.webp</span>
+                                </div>
+                                <div class="flex justify-between items-center px-1">
+                                    <p class="text-[10px] text-slate-500 truncate max-w-[200px]" title="Original">Orig: <span id="orig-name-text" class="text-slate-400 font-mono">none</span></p>
+                                </div>
+                            </div>
                         </div>
                         
                         <button id="download-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-900/40 transition-all flex items-center justify-center gap-2 group">
@@ -197,9 +211,14 @@
         const summaryFormat = document.getElementById('summary-format');
         const summaryScale = document.getElementById('summary-scale');
 
+        const filenameInput = document.getElementById('filename-input');
+        const filenameExt = document.getElementById('filename-ext');
+        const origNameText = document.getElementById('orig-name-text');
+
         let cropper;
         let selectedFormat = 'image/webp';
         let selectedScale = 1;
+        let originalFileName = 'image';
 
         // --- Upload Handling ---
 
@@ -227,6 +246,13 @@
 
         function handleFile(file) {
             if (!file.type.startsWith('image/')) return;
+
+            // Extract name for renaming feature
+            const lastDotIndex = file.name.lastIndexOf('.');
+            const nameWithoutExt = lastDotIndex !== -1 ? file.name.substring(0, lastDotIndex) : file.name;
+            originalFileName = nameWithoutExt;
+            origNameText.textContent = file.name;
+            filenameInput.value = nameWithoutExt;
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -263,6 +289,9 @@
             selectedFormat = mime;
             summaryFormat.textContent = mime.split('/')[1].toUpperCase();
             
+            const extMap = { 'image/webp': '.webp', 'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif' };
+            filenameExt.textContent = extMap[mime];
+            
             document.querySelectorAll('.format-btn').forEach(btn => {
                 const isActive = btn.dataset.format === mime;
                 btn.classList.toggle('bg-blue-600', isActive);
@@ -280,7 +309,6 @@
             selectedScale = val;
             summaryScale.textContent = (val * 100) + '%';
             
-            // Force dimension update if cropper exists
             if (cropper) {
                 const data = cropper.getData();
                 updateLiveDimensions(data.width, data.height);
@@ -315,9 +343,13 @@
             });
 
             const extMap = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif' };
+            
+            let customName = filenameInput.value.trim();
+            if (!customName) customName = originalFileName || `pro-edit-${Date.now()}`;
+
             const dataUrl = canvas.toDataURL(selectedFormat, 0.9);
             const link = document.createElement('a');
-            link.download = `pro-edit-${Date.now()}.${extMap[selectedFormat]}`;
+            link.download = `${customName}.${extMap[selectedFormat]}`;
             link.href = dataUrl;
             link.click();
         });
